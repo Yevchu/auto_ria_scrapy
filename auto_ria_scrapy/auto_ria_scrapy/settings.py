@@ -1,3 +1,7 @@
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 # Scrapy settings for auto_ria_scrapy project
 #
 # For simplicity, this file contains only settings considered important or
@@ -11,7 +15,7 @@ BOT_NAME = "auto_ria_scrapy"
 
 SPIDER_MODULES = ["auto_ria_scrapy.spiders"]
 NEWSPIDER_MODULE = "auto_ria_scrapy.spiders"
-SPLASH_URL = 'http://localhost:8050'
+SPLASH_URL = os.getenv('SPLASH_URL')
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
 #USER_AGENT = "auto_ria_scrapy (+http://www.yourdomain.com)"

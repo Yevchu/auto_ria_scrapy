@@ -1,10 +1,20 @@
+import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-# from src.conf.config import settings
+from dotenv import load_dotenv
+import logging
 
-SQLALCHEMY_DATABASE_URL="postgresql+psycopg2://postgres:567234@localhost:5432/scrapy_db"
+load_dotenv()
 
-# SQLALCHEMY_DATABASE_URL = settings.sqlalchemy_database_url
+POSTGRES_USER = os.getenv('POSTGRES_USER')
+POSTGRES_PASSWORD = os.getenv('POSTGRES_PASSWORD')
+POSTGRES_PORT = os.getenv('POSTGRES_PORT')
+POSTGRES_HOST = os.getenv('POSTGRES_HOST')
+POSTGRES_DB = os.getenv('POSTGRES_DB')
+
+
+SQLALCHEMY_DATABASE_URL=f'postgresql+psycopg2://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}'
+
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -15,3 +25,6 @@ def get_db():
         yield db
     finally:
         db.close()
+
+logging.basicConfig(level=logging.INFO)
+

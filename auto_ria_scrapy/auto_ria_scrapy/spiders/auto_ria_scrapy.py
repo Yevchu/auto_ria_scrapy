@@ -6,6 +6,8 @@ from database.models import Base, CarsInfo
 from database.db import SessionLocal
 from datetime import datetime
 
+import logging
+
 session = SessionLocal()
 
 class AutoRiaSpider(scrapy.Spider):
@@ -34,73 +36,77 @@ class AutoRiaSpider(scrapy.Spider):
                 yield response.follow(next_page, callback=self.parse)
 
     def parse_cars_info(self, response, main_url, **kwargs):
-        
-        title = response.css('h1::text').get()
-        price_usd = response.css('span.price_value strong::text').get()
-        username = response.css('div.seller_info_name::text').get()
-        odometer = response.css('div.bold.dhide::text').get()
-        phone_link = response.css('a.phone.bold.dhide.unlink.successfulCall[data-phone-unmask-target-id]')
-        carousel_container = response.css('#photosBlock .carousel-inner')
-        image_urls = carousel_container.css('img::attr(src)').getall()
-        images_count = response.css('span.dhide::text').get()
-        car_number = response.css('div.t-check span.state-num.ua::text').get()
-        car_vin = response.css('span.label-vin::text').get()
+        try:
+            title = response.css('h1::text').get()
+            price_usd = response.css('span.price_value strong::text').get()
+            username = response.css('div.seller_info div.seller_info_area div.seller_info_name::text').get()
+            odometer = response.css('div.bold.dhide::text').get()
+            phone_link = response.css('a.phone.bold.dhide.unlink.successfulCall[data-phone-unmask-target-id]')
+            carousel_container = response.css('#photosBlock .carousel-inner')
+            image_urls = carousel_container.css('img::attr(src)').getall()
+            images_count = response.css('span.dhide::text').get()
+            car_number = response.css('div.t-check span.state-num.ua::text').get()
+            car_vin = response.css('div.t-check span.label-vin::text').get()
 
-        phone_number = ''
-        if phone_link:
-            phone_number = phone_link.attrib['data-phone-unmask-target-id']
-            phone_number = phone_number.replace('unmask_', '380')
-        if odometer:
-            odometer = odometer.replace('тис. км пробіг', '000').replace(' ', '')
-        if price_usd:
-            price_usd = price_usd.replace('$', '').replace(' ', '')
-        if images_count:
-            images_count = images_count.replace('з ', '')
-        
-        if not username:
-            username = "Неможливо на разі отримати і'мя продавця"
-        if not car_number:
-            car_number = 'Номер відсутній'
-        if not car_vin:
-            car_vin = 'Відсутня інформація із цифрових реєстрів МВС по VIN-коду'
+            phone_number = ''
+            if phone_link:
+                phone_number = phone_link.attrib['data-phone-unmask-target-id']
+                phone_number = phone_number.replace('unmask_', '380')
+            if odometer:
+                odometer = odometer.replace('тис. км пробіг', '000').replace(' ', '')
+            if price_usd:
+                price_usd = price_usd.replace('$', '').replace(' ', '')
+            if images_count:
+                images_count = images_count.replace('з ', '')
             
-        self.add_or_update_car_info(
-            db=session,
-            url=response.url,
-            title=title,
-            price_usd=price_usd,
-            username=username,
-            odometer=odometer,
-            phone_number=phone_number,
-            image_url=image_urls[0],
-            images_count=images_count,
-            car_number=car_number,
-            car_vin=car_vin,
-            updated_at=datetime.now()
-        )
+            if not username:
+                username = response.css('div.seller_info div.seller_info_area h4.seller_info_name a::text').get()
+            if not car_number:
+                car_number = 'Номер відсутній'
+            if not car_vin:
+                car_vin = response.css('div.t-check span.vin-code::text').get()
 
-        yield {
-            'url': response.url,
-            'title': title.strip(),
-            'price_usd': price_usd.strip(),
-            'username': username.strip(), #TODO: і'мя записани латинськими буквами не скрапуються скрапером, поки не знаю що з цим робити
-            'odometer': odometer.strip(),
-            'phone_number': phone_number.strip(),
-            'image_url ': image_urls[0].strip(), #TODO: чи треба тут всі фото чи треба тільки перше? 
-            'images_count': images_count.strip(),
-            'car_number': car_number.strip(),
-            'car_vin': car_vin.strip(),
-        }
+                
+            self.add_or_update_car_info(
+                db=session,
+                url=response.url,
+                title=title,
+                price_usd=price_usd,
+                username=username,
+                odometer=odometer,
+                phone_number=phone_number,
+                image_url=image_urls[0],
+                images_count=images_count,
+                car_number=car_number,
+                car_vin=car_vin,
+                updated_at=datetime.now()
+            )
+
+            yield {
+                'url': response.url,
+                'title': title.strip(),
+                'price_usd': price_usd.strip(),
+                'username': username.strip(),
+                'odometer': odometer.strip(),
+                'phone_number': phone_number.strip(),
+                'image_url ': image_urls[0].strip(), #TODO: чи треба тут всі фото чи треба тільки перше? 
+                'images_count': images_count.strip(),
+                'car_number': car_number.strip(),
+                'car_vin': car_vin.strip(),
+            }
+        except Exception as e:
+            logging.error(f'Error parsing car info for {response.url}: {e}', exc_info=True)
 
     def add_or_update_car_info(self, db: Session, url:str, **kwargs):
-    
-        existing_car_from_db = db.query(CarsInfo).filter_by(url=url).first()
+        try:
+            existing_car_from_db = db.query(CarsInfo).filter_by(url=url).first()
 
-        if existing_car_from_db:
-            for key, value in kwargs.items():
-                setattr(existing_car_from_db, key, value)
-        else: 
-            new_car = CarsInfo(url=url, **kwargs)
-            db.add(new_car)
-        db.commit()
-
+            if existing_car_from_db:
+                for key, value in kwargs.items():
+                    setattr(existing_car_from_db, key, value)
+            else: 
+                new_car = CarsInfo(url=url, **kwargs)
+                db.add(new_car)
+            db.commit()
+        except Exception as e:
+            logging.error(f'Error adding or updating car info for {url}: {e}', exc_info=True)
