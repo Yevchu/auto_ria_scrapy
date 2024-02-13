@@ -34,7 +34,7 @@ def create_db_dump():
     try:
         dump_file_name = f'{dump_folder}/database_dump_{current_datetime}.sql'
         subprocess.run(
-            ['C:\\Program Files\\PostgreSQL\\16\\bin\\pg_dump.exe',
+            ['pg_dump',
             '-U', POSTGRES_USER, 
             '-d', POSTGRES_DB, 
             '>', 
