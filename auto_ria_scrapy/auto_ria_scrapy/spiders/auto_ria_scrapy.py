@@ -47,6 +47,7 @@ class AutoRiaSpider(scrapy.Spider):
             images_count = response.css('span.dhide::text').get()
             car_number = response.css('div.t-check span.state-num.ua::text').get()
             car_vin = response.css('div.t-check span.label-vin::text').get()
+            alternative_car_vin_search = response.css('div.t-check span.vin-code::text').get()
 
             phone_number = ''
             if phone_link:
@@ -64,7 +65,7 @@ class AutoRiaSpider(scrapy.Spider):
             if not car_number:
                 car_number = 'Номер відсутній'
             if not car_vin:
-                car_vin = response.css('div.t-check span.vin-code::text').get()
+                car_vin = alternative_car_vin_search if alternative_car_vin_search else 'VIN відсутній на сайті'
 
                 
             self.add_or_update_car_info(
